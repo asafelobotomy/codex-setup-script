@@ -2,9 +2,17 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Configurable behavior
+# Set SKIP_DEDUPE=true to skip npm deduplication
+# Set SKIP_NPM_DOCTOR=true to skip `npm doctor`
+: "${SKIP_DEDUPE:=false}"
+: "${SKIP_NPM_DOCTOR:=false}"
+
 # Ensure Node and npm are available
 command -v node >/dev/null 2>&1 || { echo "❌ Node.js not installed."; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo "❌ npm not installed."; exit 1; }
+echo "📍 Node path: $(command -v node)"
+echo "📍 npm path: $(command -v npm)"
 
 # Reduce npm noise during setup
 export npm_config_progress=false
@@ -19,7 +27,13 @@ unset npm_config_https_proxy
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
 # 2. Remove proxy settings from .npmrc if it exists
-[ -f ~/.npmrc ] && sed -i '/proxy/d' ~/.npmrc
+if [ -f ~/.npmrc ]; then
+  sed -i \
+    -e '/^\s*proxy=/d' \
+    -e '/^\s*https-proxy=/d' \
+    -e '/^\s*http-proxy=/d' \
+    ~/.npmrc
+fi
 
 # 3. Show current versions
 echo "🔢 Node version: $(node -v)"
@@ -43,14 +57,17 @@ npm outdated --all || echo "✅ No outdated packages"
 # 8. Reinstall project deps if package.json exists
 if [ -f package.json ]; then
   rm -rf node_modules
+  npm_flags=(--no-audit --no-fund --prefer-offline --ignore-scripts)
   if [ -f package-lock.json ]; then
-    npm ci --no-audit --no-fund --prefer-offline
+    npm ci "${npm_flags[@]}"
   else
-    npm install --no-audit --no-fund --prefer-offline
+    npm install "${npm_flags[@]}"
   fi
 
   # Dedupe packages to reduce duplicates
-  npm dedupe
+  if [ "$SKIP_DEDUPE" != "true" ]; then
+    npm dedupe
+  fi
 else
   echo "⚠️ No package.json found. Skipping dependency installation."
 fi
@@ -64,9 +81,11 @@ else
 fi
 
 # 10. Safe npm doctor run
-echo "🩺 Running npm doctor..."
-set +e
-npm doctor || echo "⚠️ npm doctor reported issues — see above."
-set -e
+if [ "$SKIP_NPM_DOCTOR" != "true" ]; then
+  echo "🩺 Running npm doctor..."
+  set +e
+  npm doctor || echo "⚠️ npm doctor reported issues — see above."
+  set -e
+fi
 
 echo "✅ Setup complete."
