@@ -51,8 +51,16 @@ npm cache verify >/dev/null
 # 6. Show .npmrc (if exists)
 [ -f ~/.npmrc ] && echo "📄 .npmrc:" && cat ~/.npmrc
 
-# 7. Audit outdated packages
-npm outdated --all || echo "✅ No outdated packages"
+# 7. Audit outdated packages only when dependencies look stale
+if [ -f package.json ]; then
+  echo "🔍 Verifying installed dependencies..."
+  if npm ls >/dev/null 2>&1; then
+    echo "✅ Dependencies satisfy package.json. Skipping registry check."
+  else
+    echo "🔄 Packages appear out of date. Checking registry..."
+    npm outdated --all || echo "✅ No outdated packages"
+  fi
+fi
 
 # 8. Reinstall project deps if package.json exists
 if [ -f package.json ]; then
