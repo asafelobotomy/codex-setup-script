@@ -40,16 +40,20 @@ npm cache verify >/dev/null
 # 7. Audit outdated packages
 npm outdated --all || echo "✅ No outdated packages"
 
-# 8. Reinstall project deps
-rm -rf node_modules
-if [ -f package-lock.json ]; then
-  npm ci --no-audit --no-fund --prefer-offline
-else
-  npm install --no-audit --no-fund --prefer-offline
-fi
+# 8. Reinstall project deps if package.json exists
+if [ -f package.json ]; then
+  rm -rf node_modules
+  if [ -f package-lock.json ]; then
+    npm ci --no-audit --no-fund --prefer-offline
+  else
+    npm install --no-audit --no-fund --prefer-offline
+  fi
 
-# Dedupe packages to reduce duplicates
-npm dedupe
+  # Dedupe packages to reduce duplicates
+  npm dedupe
+else
+  echo "⚠️ No package.json found. Skipping dependency installation."
+fi
 
 # 9. Optional: duplicate check
 if npx --no-install npm-duplicate-checker >/dev/null 2>&1; then
