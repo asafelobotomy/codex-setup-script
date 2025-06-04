@@ -16,6 +16,7 @@ echo "🧹 Cleaning npm environment..."
 # 1. Clear proxy config
 unset npm_config_http_proxy
 unset npm_config_https_proxy
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
 # 2. Remove proxy settings from .npmrc if it exists
 [ -f ~/.npmrc ] && sed -i '/proxy/d' ~/.npmrc
@@ -27,6 +28,7 @@ echo "🌐 Registry: $(npm config get registry)"
 
 # 4. Update npm
 npm install -g npm@latest --no-progress
+hash -r
 
 # 5. Clean cache
 npm cache clean --force
@@ -40,18 +42,21 @@ npm outdated --all || echo "✅ No outdated packages"
 
 # 8. Reinstall project deps
 rm -rf node_modules
-[ -f package-lock.json ] && npm ci --no-audit --no-fund --prefer-offline \
-  || npm install --no-audit --no-fund --prefer-offline
+if [ -f package-lock.json ]; then
+  npm ci --no-audit --no-fund --prefer-offline
+else
+  npm install --no-audit --no-fund --prefer-offline
+fi
 
 # Dedupe packages to reduce duplicates
 npm dedupe
 
 # 9. Optional: duplicate check
-if npx --yes npm-duplicate-checker >/dev/null 2>&1; then
+if npx --no-install npm-duplicate-checker >/dev/null 2>&1; then
   echo "🔍 Checking for duplicate packages..."
-  npx npm-duplicate-checker
+  npx --no-install npm-duplicate-checker
 else
-  echo "⚠️ Duplicate checker not installed — skipping."
+  echo "⚠️ npm-duplicate-checker not installed — skipping."
 fi
 
 # 10. Safe npm doctor run
